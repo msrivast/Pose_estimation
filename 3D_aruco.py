@@ -5,11 +5,9 @@
  
 import cv2
 import numpy as np
+import time
 
 aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-# width = 10
-# height = 8
-# board_size = (width, height)
 square_length = 0.072
 marker_length = 0.056
 
@@ -47,7 +45,7 @@ camera_matrix = np.array([[1.11512980e+03, 0.00000000e+00, 5.75994080e+02],
                           [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
 dist_coeff = np.array([ 2.47900461e-01, -1.68800873e+00, -2.35525689e-03, -7.11035017e-03, 3.07968349e+00])
 
-
+first_run = True
 def draw_axis(frame, camera_matrix, dist_coeff, board, verbose=True):
     frame = cv2.undistort(frame, camera_matrix,dist_coeff)
     marker_corners, marker_ids, rejected_points = aruco_detector.detectMarkers(frame)
@@ -55,7 +53,13 @@ def draw_axis(frame, camera_matrix, dist_coeff, board, verbose=True):
     if not (marker_ids is None) and len(marker_ids) > 0:
         try:
             obj_points, img_points = board.matchImagePoints(marker_corners, marker_ids)
-            flag, rvec, tvec = cv2.solvePnP(obj_points, img_points, camera_matrix, dist_coeff)
+            
+            global rvec, tvec, first_run
+            if first_run:
+                flag, rvec, tvec = cv2.solvePnP(obj_points, img_points, camera_matrix, dist_coeff)
+                # first_run = False
+            
+            # flag, rvec, tvec = cv2.solvePnP(obj_points, img_points, camera_matrix, dist_coeff,rvec,tvec,useExtrinsicGuess=True,flags=0)
             if flag:
                 cv2.drawFrameAxes(frame, camera_matrix, dist_coeff, rvec, tvec, .1)
                 cv2.aruco.drawDetectedMarkers(frame, marker_corners, marker_ids)
@@ -77,13 +81,19 @@ def main():
     cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280) #Camera resolution MS Lifecam HD-3000
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    tic = time.perf_counter()
+    counter = 0
     while True:
+        counter += 1
         ret, frame = cap.read()
         k = cv2.waitKey(1)
         if k == 27:  # Esc
             break
-        axis_frame = draw_axis(frame, camera_matrix, dist_coeff, board, True)
+        axis_frame = draw_axis(frame, camera_matrix, dist_coeff, board, False)
         cv2.imshow('Out', axis_frame)
+        if counter == 20:
+            toc = time.perf_counter()
+            print(f"Elaspsed time {toc - tic:0.4f} seconds")
 
 
 
